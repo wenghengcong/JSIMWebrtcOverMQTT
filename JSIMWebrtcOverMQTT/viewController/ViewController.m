@@ -21,6 +21,8 @@
 @property (strong ,nonatomic)ServerConfig       *turnerverConfig;
 @property (strong ,nonatomic)ServerConfig       *mqttServerConfig;
 
+@property (strong ,nonatomic)MQTTSessionTool        *mqttSessionTool;
+
 @end
 
 @implementation ViewController
@@ -35,6 +37,11 @@
 #pragma mark- init property
 - (void)initAndAlloc {
     
+    self.myIDTextField.delegate = self;
+    self.otherIDTextField.delegate = self;
+    self.iceServerTextField.delegate = self;
+    self.mqttServerTextField.delegate = self;
+    
     self.mySelf = [[ClientUser alloc]init];
     self.otherUser = [[ClientUser alloc]init];
     
@@ -44,18 +51,120 @@
     
     self.chooseUserSeg.selectedSegmentIndex = 0;
     [self chooseUser:self.chooseUserSeg];
+    
+    self.mqttSessionTool = [[MQTTSessionTool alloc]init];
+    [self.mqttSessionTool.mqttSession addObserver:self
+                                       forKeyPath:@"status"
+                                          options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
+                                          context:nil];
+    self.mqttSessionTool.mqttSession.delegate = self;
+    [self updateMQTTSession];
+}
+- (void)updateMQTTSession {
+    
+    if (self.mqttSessionTool.mqttSession.status == MQTTSessionStatusConnected) {
+        [self.mqttSessionTool.mqttSession close];
+        [self.mqttSessionTool sessionConnectToHost:self.mqttServerConfig.url Port:[self.mqttServerConfig.port integerValue]];
+    }else{
+        [self.mqttSessionTool sessionConnectToHost:self.mqttServerConfig.url Port:[self.mqttServerConfig.port integerValue]];
+
+    }
+   
+    //先设置sub topic/pub topic
+    
+    if (self.mqttSessionTool.subTopic == nil) {
+        //如果为空，就是第一次订阅
+        self.mqttSessionTool.subTopic = self.mySelf.userName;
+        self.mqttSessionTool.pubTopic = self.otherUser.userName;
+        [self.mqttSessionTool subscriberTopic];
+    }else if (self.mqttSessionTool.subTopic != self.mySelf.userName) {
+        //如果当前订阅主题跟当前用户名不同，先取消订阅，再重新订阅
+        [self.mqttSessionTool unSubscriberTopic];
+        self.mqttSessionTool.subTopic = self.mySelf.userName;
+        self.mqttSessionTool.pubTopic = self.otherUser.userName;
+        [self.mqttSessionTool subscriberTopic];
+    }else{
+        //否则，订阅的主题相同
+    }
 
 }
 
-
 - (IBAction)warmUpAction:(id)sender {
-    
-    
+    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:@"make ready"]];
+
 }
 
 - (IBAction)connectAction:(id)sender {
     
     
+}
+
+
+
+
+
+
+#pragma mark- 消息处理
+
+- (ChatMessage *)buildChatMessageWithContent:(NSString *)content{
+    ChatMessage *mes = [[ChatMessage alloc]init];
+    mes.mesID = 0;
+    mes.formUser = self.mySelf;
+    mes.toUser = self.otherUser;
+    mes.content = content;
+    
+    return mes;
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
+    
+    //    MQTTSessionStatusCreated,
+    //    MQTTSessionStatusConnecting,
+    //    MQTTSessionStatusConnected,
+    //    MQTTSessionStatusDisconnecting,
+    //    MQTTSessionStatusClosed,
+    //    MQTTSessionStatusError
+    NSString *state = @"";
+    switch (self.mqttSessionTool.mqttSession.status) {
+        case MQTTSessionStatusCreated:
+            state = @"MQTTSessionStatusCreated";
+            break;
+            
+        case MQTTSessionStatusConnecting:
+            state = @"MQTTSessionStatusConnecting";
+            break;
+            
+        case MQTTSessionStatusConnected:
+            state = @"MQTTSessionStatusConnected";
+
+            break;
+            
+        case MQTTSessionStatusDisconnecting:
+            state = @"MQTTSessionStatusDisconnecting";
+            break;
+            
+        case MQTTSessionStatusClosed:
+            state = @"MQTTSessionStatusClosed";
+            break;
+            
+        case MQTTSessionStatusError:
+            state = @"MQTTSessionStatusError";
+            break;
+        default:
+            break;
+    }
+    self.mqttStateLabel.text = state;
+
+    NSString *content = [NSString stringWithFormat:@"Session State-%@",state];
+    [JSIMTool logOutContent:content];
+    
+}
+
+
+
+- (void)newMessage:(MQTTSession *)session data:(NSData *)data onTopic:(NSString *)topic qos:(MQTTQosLevel)qos retained:(BOOL)retained mid:(unsigned int)mid{
+    ChatMessage *mes = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+    [JSIMTool logOutContent:mes.content];
 }
 
 #pragma mark- 配置
@@ -91,38 +200,25 @@
     
     UISegmentedControl *segC = (UISegmentedControl *)sender;
     if (segC.selectedSegmentIndex == 0) {
-        
         self.mySelf.userName = UserAliceName;
         self.otherUser.userName = UserBobName;
-        
-        self.stunServerConfig.serverName = SERVERNAME_DNJ;
-        self.stunServerConfig.url = ICESERVER_DNJ_STUN_HOST;
-        self.turnerverConfig.url = ICESERVER_DNJ_TURN_HOST;
-        self.turnerverConfig.username = ICESERVER_DNJ_TURN_USERNAME;
-        self.turnerverConfig.credential = ICESERVER_DNJ_TURN_CREDENTIAL;
-        
-        self.mqttServerConfig.serverName = SERVERNAME_IBM;
-        self.mqttServerConfig.url = MQTTSERVER_IBMHOST;
-        self.mqttServerConfig.port = MQTTSERVER_IBMPORT;
-        
     }else{
         self.mySelf.userName = UserBobName;
         self.otherUser.userName = UserAliceName;
-        
-        self.stunServerConfig.serverName = SERVERNAME_DNJ;
-        self.stunServerConfig.url = ICESERVER_DNJ_STUN_HOST;
-        self.turnerverConfig.url = ICESERVER_DNJ_TURN_HOST;
-        self.turnerverConfig.username = ICESERVER_DNJ_TURN_USERNAME;
-        self.turnerverConfig.credential = ICESERVER_DNJ_TURN_CREDENTIAL;
-        
-        self.mqttServerConfig.serverName = SERVERNAME_IBM;
-        self.mqttServerConfig.url = MQTTSERVER_IBMHOST;
-        self.mqttServerConfig.port = MQTTSERVER_IBMPORT;
-        
     }
     
-    [self updateTextFieldContent];
+    self.stunServerConfig.serverName = SERVERNAME_DNJ;
+    self.stunServerConfig.url = ICESERVER_DNJ_STUN_HOST;
+    self.turnerverConfig.url = ICESERVER_DNJ_TURN_HOST;
+    self.turnerverConfig.username = ICESERVER_DNJ_TURN_USERNAME;
+    self.turnerverConfig.credential = ICESERVER_DNJ_TURN_CREDENTIAL;
     
+    self.mqttServerConfig.serverName = SERVERNAME_DNJ;
+    self.mqttServerConfig.url = MQTTSERVER_DNJHOSt;
+    self.mqttServerConfig.port = MQTTSERVER_DNJPORT;
+    
+    [self updateTextFieldContent];
+    [self updateMQTTSession];
 }
 
 - (void)updateTextFieldContent {
@@ -131,6 +227,7 @@
     self.otherIDTextField.text = self.otherUser.userName;
     self.mqttServerTextField.text = self.mqttServerConfig.serverName;
     self.iceServerTextField.text = self.stunServerConfig.serverName;
+    [self updateMQTTSession];
 }
 
 #pragma mark- action sheet delegate 
@@ -205,5 +302,11 @@
     [self updateTextFieldContent];
     
 }
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField{
+    [self.view endEditing:YES];
+    return YES;
+}
+
 
 @end

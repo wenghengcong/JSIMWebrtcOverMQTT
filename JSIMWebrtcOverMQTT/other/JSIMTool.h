@@ -20,5 +20,6 @@
  */
 + (void)logOutWithStep:(NSInteger)setp Content:(NSString *)content;
 
++ (void)logOutContent:(NSString *)content;
 
 @end

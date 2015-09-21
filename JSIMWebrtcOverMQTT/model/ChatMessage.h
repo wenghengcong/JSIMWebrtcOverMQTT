@@ -20,7 +20,7 @@
 
 @property (strong ,nonatomic)ClientUser         *toUser;
 
-@property (strong ,nonatomic)NSString           *content;
+@property (copy ,nonatomic)NSString           *content;
 
 
 @end

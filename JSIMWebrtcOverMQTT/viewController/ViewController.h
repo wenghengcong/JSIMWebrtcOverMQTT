@@ -12,7 +12,11 @@
 #import "ServerConfig.h"
 #import "ConfigSet.h"
 
-@interface ViewController : UIViewController
+#import "JSIMTool.h"
+#import "MQTTSessionTool.h"
+#import "WebRTCTool.h"
+
+@interface ViewController : UIViewController<MQTTSessionDelegate,UITextFieldDelegate>
 
 
 @property (strong ,nonatomic)ClientUser     *mySelf;
@@ -31,6 +35,7 @@
 
 @property (weak, nonatomic) IBOutlet UITextField *mqttServerTextField;
 
+@property (weak, nonatomic) IBOutlet UILabel *mqttStateLabel;
 
 - (IBAction)chooseMyID:(id)sender;
 - (IBAction)chooseUID:(id)sender;

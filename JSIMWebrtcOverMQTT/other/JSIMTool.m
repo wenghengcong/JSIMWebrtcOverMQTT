@@ -17,4 +17,8 @@
     RTCLog(@"第%d步---%@",setp,content);
 }
 
++ (void)logOutContent:(NSString *)content{
+    
+    RTCLog(@"Content---%@",content);
+}
 @end
