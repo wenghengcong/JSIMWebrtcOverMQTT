@@ -14,7 +14,7 @@
     
     self = [super init];
     if (self) {
-        self.formUser = [aDecoder decodeObjectForKey:@"formUser"];
+        self.fromUser = [aDecoder decodeObjectForKey:@"formUser"];
         self.toUser = [aDecoder decodeObjectForKey:@"toUser"];
         self.mesID = [aDecoder decodeIntegerForKey:@"mesID"];
         self.content = [aDecoder decodeObjectForKey:@"content"];
@@ -25,7 +25,7 @@
 
 - (void)encodeWithCoder:(NSCoder *)aCoder {
     
-    [aCoder encodeObject:self.formUser forKey:@"formUser"];
+    [aCoder encodeObject:self.fromUser forKey:@"formUser"];
     [aCoder encodeObject:self.toUser forKey:@"toUser"];
     [aCoder encodeInteger:self.mesID forKey:@"mesID"];
     [aCoder encodeObject:self.content forKey:@"content"];

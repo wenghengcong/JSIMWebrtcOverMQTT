@@ -7,7 +7,9 @@
 //
 
 #import "ViewController.h"
-
+#define TestConnectionMessContent @"测试mqtt连接"
+#define ALERTVIEWCALLER     10
+#define ALERTVIEWCALLEE     100
 
 @interface ViewController ()<UIActionSheetDelegate>
 
@@ -22,6 +24,9 @@
 @property (strong ,nonatomic)ServerConfig       *mqttServerConfig;
 
 @property (strong ,nonatomic)MQTTSessionTool        *mqttSessionTool;
+@property (strong ,nonatomic)WebRTCTool             *webrtcTool;
+
+@property (assign ,nonatomic)BOOL                   peerConnectionCreated;
 
 @end
 
@@ -37,6 +42,10 @@
 #pragma mark- init property
 - (void)initAndAlloc {
     
+    self.mqttSessionTool = [[MQTTSessionTool alloc]init];
+    self.webrtcTool = [[WebRTCTool alloc]init];
+    self.webrtcTool.webDelegate = self;
+    
     self.myIDTextField.delegate = self;
     self.otherIDTextField.delegate = self;
     self.iceServerTextField.delegate = self;
@@ -51,25 +60,31 @@
     
     self.chooseUserSeg.selectedSegmentIndex = 0;
     [self chooseUser:self.chooseUserSeg];
+    [self updateICEServer];
+}
+
+- (void)updateICEServer {
+    self.webrtcTool.stunServerConfig = self.stunServerConfig;
+    self.webrtcTool.turnServerConfig = self.turnerverConfig;
+}
+
+- (void)updateMQTTSessionConnection {
     
-    self.mqttSessionTool = [[MQTTSessionTool alloc]init];
+    if (self.mqttSessionTool.mqttSession.status == MQTTSessionStatusConnected) {
+//        [self.mqttSessionTool.mqttSession close];
+//        [self.mqttSessionTool sessionConnectToHost:self.mqttServerConfig.url Port:[self.mqttServerConfig.port integerValue]];
+    }else{
+        [self.mqttSessionTool sessionConnectToHost:self.mqttServerConfig.url Port:[self.mqttServerConfig.port integerValue]];
+    }
     [self.mqttSessionTool.mqttSession addObserver:self
                                        forKeyPath:@"status"
                                           options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
                                           context:nil];
     self.mqttSessionTool.mqttSession.delegate = self;
-    [self updateMQTTSession];
-}
-- (void)updateMQTTSession {
-    
-    if (self.mqttSessionTool.mqttSession.status == MQTTSessionStatusConnected) {
-        [self.mqttSessionTool.mqttSession close];
-        [self.mqttSessionTool sessionConnectToHost:self.mqttServerConfig.url Port:[self.mqttServerConfig.port integerValue]];
-    }else{
-        [self.mqttSessionTool sessionConnectToHost:self.mqttServerConfig.url Port:[self.mqttServerConfig.port integerValue]];
 
-    }
-   
+}
+
+- (void)updateMQTTSessionTopic {
     //先设置sub topic/pub topic
     
     if (self.mqttSessionTool.subTopic == nil) {
@@ -89,19 +104,19 @@
 
 }
 
-- (IBAction)warmUpAction:(id)sender {
-    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:@"make ready"]];
+#pragma mark- 按钮
 
+- (IBAction)warmUpAction:(id)sender {
+    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:TestConnectionMessContent]];
 }
 
 - (IBAction)connectAction:(id)sender {
     
-    
+    NSString *toUserStr = [NSString stringWithFormat:@"向%@发起通话",self.otherUser.userName];
+    UIAlertView *alertV = [[UIAlertView alloc]initWithTitle:@"发起通话" message:toUserStr delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
+    alertV.tag = ALERTVIEWCALLER;
+    [alertV show];
 }
-
-
-
-
 
 
 #pragma mark- 消息处理
@@ -109,21 +124,14 @@
 - (ChatMessage *)buildChatMessageWithContent:(NSString *)content{
     ChatMessage *mes = [[ChatMessage alloc]init];
     mes.mesID = 0;
-    mes.formUser = self.mySelf;
+    mes.fromUser = self.mySelf;
     mes.toUser = self.otherUser;
     mes.content = content;
-    
     return mes;
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
-    
-    //    MQTTSessionStatusCreated,
-    //    MQTTSessionStatusConnecting,
-    //    MQTTSessionStatusConnected,
-    //    MQTTSessionStatusDisconnecting,
-    //    MQTTSessionStatusClosed,
-    //    MQTTSessionStatusError
+
     NSString *state = @"";
     switch (self.mqttSessionTool.mqttSession.status) {
         case MQTTSessionStatusCreated:
@@ -135,42 +143,95 @@
             break;
             
         case MQTTSessionStatusConnected:
+        {
+            //连接上MQTT之后更新topic
             state = @"MQTTSessionStatusConnected";
-
+            NSString *content = [NSString stringWithFormat:@"Session State-%@",state];
+            [JSIMTool logOutContent:content];
+            [self updateMQTTSessionTopic];
             break;
+        }
             
         case MQTTSessionStatusDisconnecting:
             state = @"MQTTSessionStatusDisconnecting";
             break;
             
         case MQTTSessionStatusClosed:
+        {
             state = @"MQTTSessionStatusClosed";
+            NSString *content = [NSString stringWithFormat:@"Session State-%@",state];
+            [JSIMTool logOutContent:content];
             break;
+        }
             
         case MQTTSessionStatusError:
+        {
             state = @"MQTTSessionStatusError";
+            NSString *content = [NSString stringWithFormat:@"Session State-%@",state];
+            [JSIMTool logOutContent:content];
             break;
+        }
         default:
             break;
     }
     self.mqttStateLabel.text = state;
 
-    NSString *content = [NSString stringWithFormat:@"Session State-%@",state];
-    [JSIMTool logOutContent:content];
-    
 }
 
 
 
 - (void)newMessage:(MQTTSession *)session data:(NSData *)data onTopic:(NSString *)topic qos:(MQTTQosLevel)qos retained:(BOOL)retained mid:(unsigned int)mid{
+    
     ChatMessage *mes = [NSKeyedUnarchiver unarchiveObjectWithData:data];
-    [JSIMTool logOutContent:mes.content];
+    NSString *str = [NSString stringWithFormat:@"接受消息,主题：%@，内容：%@",topic,mes.content];
+    [JSIMTool logOutContent:str];
+    
+    //测试连接
+    if ([mes.content isEqualToString:TestConnectionMessContent]) {
+        UIAlertView  *al = [[UIAlertView alloc]initWithTitle:@"测试连接成功" message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles:@"确定" ,nil];
+        [al show];
+    }
+    
+    //处理rtc通话过程
+    NSDictionary *rtcDic = [self dictionaryWithJsonString:mes.content];
+    
+    if (rtcDic != nil) {
+        NSString *type = rtcDic[@"type"];
+        
+        //若仍然没有创建peerConnection，那么就是callee接收到offer
+        //否则是，caller接受到信息
+        if (!self.peerConnectionCreated) {
+            if ([type isEqualToString:@"offer"]) {
+                //此处作为callee接收到的offer
+                NSString *receiveStr = [NSString stringWithFormat:@"接受来自%@的通话",self.otherUser.userName];
+                UIAlertView *alertV = [[UIAlertView alloc]initWithTitle:@"接受通话" message:receiveStr delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
+                alertV.tag = ALERTVIEWCALLEE;
+                [alertV show];
+            }
+        }else{
+            [self handleRTCMessage];
+        }
+
+    }
+    
+}
+
+- (void)handleRTCMessage {
+    
+}
+
+#pragma mark- webrtc代理方法
+/***  发送本地sdp*/
+- (void)sendSdpWithData:(NSData *)data {
+    
+    NSString *sdpStr = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
+    self.peerConnectionCreated = YES;
+    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:sdpStr]];
 }
 
 #pragma mark- 配置
 
 - (IBAction)chooseMyID:(id)sender {
-    
     self.chooseMyIDAS = [[UIActionSheet alloc]initWithTitle:@"选择你的ID" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:UserAliceName,UserBobName, nil];
     [self.chooseMyIDAS showInView:self.view];
     
@@ -213,12 +274,13 @@
     self.turnerverConfig.username = ICESERVER_DNJ_TURN_USERNAME;
     self.turnerverConfig.credential = ICESERVER_DNJ_TURN_CREDENTIAL;
     
-    self.mqttServerConfig.serverName = SERVERNAME_DNJ;
-    self.mqttServerConfig.url = MQTTSERVER_DNJHOSt;
-    self.mqttServerConfig.port = MQTTSERVER_DNJPORT;
-    
+    self.mqttServerConfig.serverName = SERVERNAME_IBM;
+    self.mqttServerConfig.url = MQTTSERVER_IBMHOST;
+    self.mqttServerConfig.port = MQTTSERVER_IBMPORT;
+    //更新文本框内容
     [self updateTextFieldContent];
-    [self updateMQTTSession];
+    //更新连接
+    [self updateMQTTSessionConnection];
 }
 
 - (void)updateTextFieldContent {
@@ -227,10 +289,9 @@
     self.otherIDTextField.text = self.otherUser.userName;
     self.mqttServerTextField.text = self.mqttServerConfig.serverName;
     self.iceServerTextField.text = self.stunServerConfig.serverName;
-    [self updateMQTTSession];
 }
 
-#pragma mark- action sheet delegate 
+#pragma mark- 系统控件 delegate
 
 - (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex {
     
@@ -300,7 +361,8 @@
     }
     
     [self updateTextFieldContent];
-    
+    [self updateMQTTSessionConnection];
+    [self updateICEServer];
 }
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField{
@@ -308,5 +370,35 @@
     return YES;
 }
 
+- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
+    
+    if (buttonIndex == 1) {
+        if (alertView.tag == ALERTVIEWCALLER) {
+            //确定发起通话
+            [self.webrtcTool startAsCaller];
+        }else if (alertView.tag == ALERTVIEWCALLEE){
+            //确定接受通话
+            [self.webrtcTool startAsCallee];
+        }
+    }
 
+}
+
+#pragma mark- json字符串转字典
+
+- (NSDictionary *)dictionaryWithJsonString:(NSString *)jsonString {
+    if (jsonString == nil) {
+        return nil;
+    }
+    
+    NSData *jsonData = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
+    NSError *err;
+    NSDictionary *dic = [NSJSONSerialization JSONObjectWithData:jsonData
+                                                        options:NSJSONReadingMutableContainers
+                                                          error:&err];
+    if(err) {
+        return nil;
+    }
+    return dic;
+}
 @end

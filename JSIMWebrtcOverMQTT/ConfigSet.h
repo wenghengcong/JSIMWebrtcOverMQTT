@@ -44,10 +44,10 @@
 
 
 
-#define RTCLOG
+#define JSIMRTCLOG
 
-#ifdef RTCLOG
-#define RTCLog(format, ...) NSLog(format, ## __VA_ARGS__)
+#ifdef JSIMRTCLOG
+#define JSIMRTCLOG(format, ...) NSLog(format, ## __VA_ARGS__)
 #else
-#define RTCLog(format, ...)
+#define JSIMRTCLOG(format, ...)
 #endif

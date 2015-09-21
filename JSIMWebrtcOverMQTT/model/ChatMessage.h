@@ -16,7 +16,7 @@
 
 @property   (assign ,nonatomic)NSInteger            mesID;
 
-@property (strong ,nonatomic)ClientUser         *formUser;
+@property (strong ,nonatomic)ClientUser         *fromUser;
 
 @property (strong ,nonatomic)ClientUser         *toUser;
 

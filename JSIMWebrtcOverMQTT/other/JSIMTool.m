@@ -14,11 +14,11 @@
 
 + (void)logOutWithStep:(NSInteger)setp Content:(NSString *)content
 {
-    RTCLog(@"第%d步---%@",setp,content);
+    JSIMRTCLOG(@"第%d步-%@",setp,content);
 }
 
 + (void)logOutContent:(NSString *)content{
     
-    RTCLog(@"Content---%@",content);
+    JSIMRTCLOG(@"-%@",content);
 }
 @end

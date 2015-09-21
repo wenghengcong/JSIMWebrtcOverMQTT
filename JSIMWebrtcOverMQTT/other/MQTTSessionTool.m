@@ -28,7 +28,7 @@
         self.mqttSession = [[MQTTSession alloc] initWithClientId:nil
                                                         userName:nil
                                                         password:nil
-                                                       keepAlive:1000
+                                                       keepAlive:60
                                                     cleanSession:true
                                                             will:YES
                                                        willTopic:@"online"

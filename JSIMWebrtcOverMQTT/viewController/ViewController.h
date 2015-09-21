@@ -16,7 +16,7 @@
 #import "MQTTSessionTool.h"
 #import "WebRTCTool.h"
 
-@interface ViewController : UIViewController<MQTTSessionDelegate,UITextFieldDelegate>
+@interface ViewController : UIViewController<MQTTSessionDelegate,UITextFieldDelegate,UIAlertViewDelegate,WebRTCToolDelegate>
 
 
 @property (strong ,nonatomic)ClientUser     *mySelf;
