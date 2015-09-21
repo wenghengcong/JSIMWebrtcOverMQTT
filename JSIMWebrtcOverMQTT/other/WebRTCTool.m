@@ -20,6 +20,7 @@
     }
     return self;
 }
+
 #pragma mark- 初始化RTC
 
 - (void)startEngine {
@@ -99,8 +100,12 @@
     
     [self.peerConnection addStream:lms];
     
+    if ([self.webDelegate respondsToSelector:@selector(hasCreatedPeerConnection)]) {
+        [self.webDelegate hasCreatedPeerConnection];
+    }
 }
 
+#pragma mark- viewcontroller调用
 
 - (void)startAsCaller {
     
@@ -109,9 +114,81 @@
     
 }
 
-- (void)startAsCallee {
+- (void)startAsCallee:(NSDictionary *)rtcDic {
     
     [self startWebrtcConnection];
+    if ([self.webDelegate respondsToSelector:@selector(handleRTCMessage:)]) {
+        [self.webDelegate handleRTCMessage:rtcDic];
+    }
+}
+
+- (void)callerHandleOfferWithType:(NSString *)type offer:(NSString *)offer {
+    
+    RTCSessionDescription *sdp = [[RTCSessionDescription alloc]
+                                  initWithType:type sdp:[self preferISAC:offer]];
+    [self.peerConnection setRemoteDescriptionWithDelegate:self sessionDescription:sdp];
+
+}
+
+- (void)callerHandleAnswerWithType:(NSString *)type answer:(NSString *)answer {
+    
+    RTCSessionDescription *sdp = [[RTCSessionDescription alloc]
+                                  initWithType:type sdp:[self preferISAC:answer]];
+    [self.peerConnection setRemoteDescriptionWithDelegate:self sessionDescription:sdp];
+
+}
+
+- (void)handleIceCandidateWithID:(NSString *)ID label:(NSNumber *)label candidate:(NSString *)sdp {
+    
+    RTCICECandidate *candidate =
+    [[RTCICECandidate alloc] initWithMid:ID
+                                   index:label.intValue
+                                     sdp:sdp];
+    
+    [self.peerConnection addICECandidate:candidate];
+}
+
+#pragma mark- RTCPeerConnectionDelegate
+/** *  当ICE被发现时，调用 */
+- (void)peerConnection:(RTCPeerConnection *)peerConnection gotICECandidate:(RTCICECandidate *)candidate {
+    NSDictionary *jsonDict =
+    @{ @"type" : @"candidate",
+       @"label" : [NSNumber numberWithInteger:candidate.sdpMLineIndex],
+       @"id" : candidate.sdpMid,
+       @"candidate" : candidate.sdp };
+    NSError *error;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonDict options:0 error:&error];
+    
+    if (!error) {
+        if ([self.webDelegate respondsToSelector:@selector(sendICECandidate:)]) {
+            [self.webDelegate sendICECandidate:jsonData];
+        }
+    } else {
+
+    }
+}
+
+- (void)peerConnection:(RTCPeerConnection *)peerConnection iceGatheringChanged:(RTCICEGatheringState)newState {
+    
+}
+
+- (void)peerConnection:(RTCPeerConnection *)peerConnection iceConnectionChanged:(RTCICEConnectionState)newState {
+    
+}
+
+- (void)peerConnection:(RTCPeerConnection *)peerConnection signalingStateChanged:(RTCSignalingState)stateChanged{
+    
+}
+
+- (void)peerConnectionOnRenegotiationNeeded:(RTCPeerConnection *)peerConnection {
+    
+}
+
+- (void)peerConnection:(RTCPeerConnection *)peerConnection addedStream:(RTCMediaStream *)stream {
+    
+}
+
+- (void)peerConnectionOnError:(RTCPeerConnection *)peerConnection {
     
 }
 
@@ -137,6 +214,19 @@
 
 - (void)peerConnection:(RTCPeerConnection *)peerConnection didSetSessionDescriptionWithError:(NSError *)error{
     
+    // If we have a local offer OR answer we should signal it
+    if (self.peerConnection.signalingState == RTCSignalingHaveLocalOffer ) {
+
+        
+    } else if (self.peerConnection.signalingState == RTCSignalingHaveLocalPrAnswer) {
+
+    
+    }else if (self.peerConnection.signalingState == RTCSignalingHaveRemoteOffer) {
+        //create answer
+        [self.peerConnection createAnswerWithDelegate:self constraints:self.sdpConstraints];
+    }else if (self.peerConnection.signalingState == RTCSignalingHaveRemotePrAnswer) {
+
+    }
 }
 
 

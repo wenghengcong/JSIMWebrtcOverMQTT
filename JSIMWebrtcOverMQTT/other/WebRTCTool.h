@@ -74,13 +74,23 @@
 
 
 - (void)startAsCaller;
-- (void)startAsCallee;
+- (void)startAsCallee:(NSDictionary *)rtcDic;
+
+- (void)callerHandleOfferWithType:(NSString *)type offer:(NSString *)offer;
+- (void)callerHandleAnswerWithType:(NSString *)type answer:(NSString *)answer;
+- (void)handleIceCandidateWithID:(NSString *)ID label:(NSNumber *)label candidate:(NSString *)candidate;
+
 
 @end
 
 @protocol WebRTCToolDelegate <NSObject>
 
 @optional
+
 - (void)sendSdpWithData:(NSData *)data;
+- (void)sendICECandidate:(NSData *)data;
+
+- (void)hasCreatedPeerConnection;
+- (void)handleRTCMessage:(NSDictionary *)rtcDic;
 
 @end

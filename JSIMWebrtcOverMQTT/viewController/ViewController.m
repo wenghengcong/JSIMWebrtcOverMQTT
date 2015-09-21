@@ -28,6 +28,11 @@
 
 @property (assign ,nonatomic)BOOL                   peerConnectionCreated;
 
+/**
+ *  callee收到的offer
+ */
+@property (strong ,nonatomic)NSDictionary           *calleeReceiveOfferDic;
+
 @end
 
 @implementation ViewController
@@ -41,6 +46,8 @@
 
 #pragma mark- init property
 - (void)initAndAlloc {
+    
+    self.calleeReceiveOfferDic = [[NSDictionary alloc]init];
     
     self.mqttSessionTool = [[MQTTSessionTool alloc]init];
     self.webrtcTool = [[WebRTCTool alloc]init];
@@ -202,6 +209,7 @@
         //否则是，caller接受到信息
         if (!self.peerConnectionCreated) {
             if ([type isEqualToString:@"offer"]) {
+                self.calleeReceiveOfferDic = rtcDic;
                 //此处作为callee接收到的offer
                 NSString *receiveStr = [NSString stringWithFormat:@"接受来自%@的通话",self.otherUser.userName];
                 UIAlertView *alertV = [[UIAlertView alloc]initWithTitle:@"接受通话" message:receiveStr delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
@@ -209,14 +217,51 @@
                 [alertV show];
             }
         }else{
-            [self handleRTCMessage];
+            [self handleRTCMessage:rtcDic];
         }
 
     }
     
 }
 
-- (void)handleRTCMessage {
+- (void)handleRTCMessage:(NSDictionary *)rtcDic {
+    
+    if (!self.peerConnectionCreated) {
+        return;
+    }
+    
+    [JSIMTool logOutContent:@"处理rtc信息流"];
+    
+    NSString *type = rtcDic[@"type"];
+    
+    if ([type compare:@"offer"] == NSOrderedSame) {
+        
+        [JSIMTool logOutContent:@"处理rtc信息流————offer"];
+
+        NSString *sdpString = [rtcDic objectForKey:@"sdp"];
+        [self.webrtcTool callerHandleOfferWithType:type offer:sdpString];
+
+        
+    }else if ([type compare:@"answer"] == NSOrderedSame) {
+        
+        [JSIMTool logOutContent:@"处理rtc信息流————answer"];
+
+        NSString *sdpString = [rtcDic objectForKey:@"sdp"];
+        [self.webrtcTool callerHandleAnswerWithType:type answer:sdpString];
+        
+    }else if ([type compare:@"candidate"] == NSOrderedSame) {
+        
+        [JSIMTool logOutContent:@"处理rtc信息流————candidate"];
+
+        NSString *mid = [rtcDic objectForKey:@"id"];
+        NSNumber *sdpLineIndex = [rtcDic objectForKey:@"label"];
+        NSString *sdp = [rtcDic objectForKey:@"candidate"];
+        [self.webrtcTool handleIceCandidateWithID:mid label:sdpLineIndex candidate:sdp];
+        
+    }else if ([type compare:@"bye"] == NSOrderedSame) {
+//        [self stopRTCTaskAsInitiator:NO];
+    }
+
     
 }
 
@@ -225,8 +270,18 @@
 - (void)sendSdpWithData:(NSData *)data {
     
     NSString *sdpStr = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
-    self.peerConnectionCreated = YES;
     [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:sdpStr]];
+}
+
+- (void)sendICECandidate:(NSData *)data {
+    
+    NSString *iceCandidate = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
+    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:iceCandidate]];
+    
+}
+
+- (void)hasCreatedPeerConnection {
+    self.peerConnectionCreated = YES;
 }
 
 #pragma mark- 配置
@@ -378,7 +433,7 @@
             [self.webrtcTool startAsCaller];
         }else if (alertView.tag == ALERTVIEWCALLEE){
             //确定接受通话
-            [self.webrtcTool startAsCallee];
+            [self.webrtcTool startAsCallee:self.calleeReceiveOfferDic];
         }
     }
 
