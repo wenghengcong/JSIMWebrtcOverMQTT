@@ -9,6 +9,7 @@
 #import <Foundation/Foundation.h>
 #import "JSIMTool.h"
 #import "ServerConfig.h"
+#import "MQTTSessionTool.h"
 
 #import <RTCAVFoundationVideoSource.h>
 #import <RTCAudioSource.h>
@@ -53,6 +54,9 @@
 
 @interface WebRTCTool : NSObject<RTCPeerConnectionDelegate,RTCSessionDescriptionDelegate>
 
+@property (strong ,nonatomic)MQTTSessionTool                *mqttSessionTool;
+
+
 @property (strong ,nonatomic)RTCPeerConnectionFactory       *peerConnectionFactory;
 
 @property (strong ,nonatomic)RTCMediaConstraints            *pcConstraints;
@@ -70,11 +74,13 @@
 @property (strong ,nonatomic)ServerConfig                   *stunServerConfig;
 @property (strong ,nonatomic)ServerConfig                   *turnServerConfig;
 
+
+@property (assign ,nonatomic)BOOL                           isInitiator;
+@property(nonatomic, assign) BOOL                           hasCreatedPeerConnection;
+
 @property (weak ,nonatomic)id<WebRTCToolDelegate>           webDelegate;
 
-
-- (void)startAsCaller;
-- (void)startAsCallee:(NSDictionary *)rtcDic;
+- (void)startRTCWorkerAsInitiator:(BOOL)flag queuedSignalMessage:(NSMutableArray *)queueSingleMessage;
 
 - (void)callerHandleOfferWithType:(NSString *)type offer:(NSString *)offer;
 - (void)callerHandleAnswerWithType:(NSString *)type answer:(NSString *)answer;
@@ -90,7 +96,13 @@
 - (void)sendSdpWithData:(NSData *)data;
 - (void)sendICECandidate:(NSData *)data;
 
-- (void)hasCreatedPeerConnection;
 - (void)handleRTCMessage:(NSDictionary *)rtcDic;
+
+- (void)handleRTCMessageDone;
+
+- (void)addVideoView;
+
+- (void)receiveStreamWithPeerConnection:(RTCMediaStream *)mediaStream;
+
 
 @end

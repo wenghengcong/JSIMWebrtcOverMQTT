@@ -12,8 +12,8 @@
 
 #endif
 
-#define UserAliceName                   @"User/Alice"
-#define UserBobName                     @"User/Bob"
+#define UserAliceName                   @"JSIMUser/Alice"
+#define UserBobName                     @"JSIMUser/Bob"
 
 //server name
 #define SERVERNAME_DNJ                  @"dnj server"

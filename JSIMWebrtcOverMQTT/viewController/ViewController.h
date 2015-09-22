@@ -16,7 +16,11 @@
 #import "MQTTSessionTool.h"
 #import "WebRTCTool.h"
 
-@interface ViewController : UIViewController<MQTTSessionDelegate,UITextFieldDelegate,UIAlertViewDelegate,WebRTCToolDelegate>
+
+#import "RTCVideoView.h"
+
+
+@interface ViewController : UIViewController<MQTTSessionDelegate,UITextFieldDelegate,UIAlertViewDelegate,WebRTCToolDelegate,RTCEAGLVideoViewDelegate>
 
 
 @property (strong ,nonatomic)ClientUser     *mySelf;
@@ -37,6 +41,11 @@
 
 @property (weak, nonatomic) IBOutlet UILabel *mqttStateLabel;
 
+@property (strong ,nonatomic)RTCVideoView           *rtcVideoView;
+
+@property (strong ,nonatomic)RTCEAGLVideoView       *remoteVideoView;
+
+
 - (IBAction)chooseMyID:(id)sender;
 - (IBAction)chooseUID:(id)sender;
 
@@ -47,13 +56,11 @@
 /**
  *  连接前发布消息
  *
- *  @param sender <#sender description#>
  */
 - (IBAction)warmUpAction:(id)sender;
 /**
  *  发起连接
  *
- *  @param sender <#sender description#>
  */
 - (IBAction)connectAction:(id)sender;
 @end

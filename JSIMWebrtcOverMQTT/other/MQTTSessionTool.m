@@ -25,19 +25,21 @@
 - (instancetype)init{
     self = [super init];
     if (self) {
-        self.mqttSession = [[MQTTSession alloc] initWithClientId:nil
-                                                        userName:nil
-                                                        password:nil
-                                                       keepAlive:60
-                                                    cleanSession:true
-                                                            will:YES
-                                                       willTopic:@"online"
-                                                         willMsg:[@"offline" dataUsingEncoding:NSUTF8StringEncoding]
-                                                         willQoS:MQTTQosLevelAtMostOnce
-                                                  willRetainFlag:FALSE
-                                                   protocolLevel:4
-                                                         runLoop:[NSRunLoop currentRunLoop]
-                                                         forMode:NSDefaultRunLoopMode];
+//        self.mqttSession = [[MQTTSession alloc] initWithClientId:nil
+//                                                        userName:nil
+//                                                        password:nil
+//                                                       keepAlive:1000
+//                                                    cleanSession:true
+//                                                            will:YES
+//                                                       willTopic:@"online"
+//                                                         willMsg:[@"offline" dataUsingEncoding:NSUTF8StringEncoding]
+//                                                         willQoS:MQTTQosLevelAtMostOnce
+//                                                  willRetainFlag:FALSE
+//                                                   protocolLevel:4
+//                                                         runLoop:[NSRunLoop currentRunLoop]
+//                                                         forMode:NSDefaultRunLoopMode];
+
+        self.mqttSession = [[MQTTSession alloc]init];
     }
 
     return self;
@@ -83,15 +85,15 @@
 #pragma mark- send meessage
 
 - (void)sendMessageWithData:(NSData *)data{
-    [self.mqttSession publishData:data onTopic:self.pubTopic];
 
+    [self.mqttSession publishDataAtMostOnce:data onTopic:self.pubTopic];
     ChatMessage *chatMes = [NSKeyedUnarchiver unarchiveObjectWithData:data];
     NSString *str = [NSString stringWithFormat:@"发送消息，主题：%@--内容：%@",self.pubTopic,chatMes.content];
     [JSIMTool logOutContent:str];
 }
 
 - (void)sendMessageWithDic:(NSDictionary *)dic{
-    
+
     [self.mqttSession publishJson:dic onTopic:self.pubTopic];
 }
 

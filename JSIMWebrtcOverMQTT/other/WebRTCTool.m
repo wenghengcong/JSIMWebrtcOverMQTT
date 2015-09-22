@@ -14,9 +14,12 @@
 - (instancetype)init{
     self = [super init];
     if (self) {
-        [self startEngine];
+        
         self.stunServerConfig = [[ServerConfig alloc]init];
         self.turnServerConfig = [[ServerConfig alloc]init];
+        self.mqttSessionTool = [[MQTTSessionTool alloc]init];
+        [self startEngine];
+
     }
     return self;
 }
@@ -24,6 +27,8 @@
 #pragma mark- 初始化RTC
 
 - (void)startEngine {
+    
+    RTCSetMinDebugLogLevel(kRTCLoggingSeverityError);
     
     [RTCPeerConnectionFactory initializeSSL];
     self.peerConnectionFactory = [[RTCPeerConnectionFactory alloc]init];
@@ -37,8 +42,10 @@
     //设置RTCPeerConnection的约束
     self.pcConstraints = [[RTCMediaConstraints alloc] initWithMandatoryConstraints:@[[[RTCPair alloc] initWithKey:@"OfferToReceiveAudio" value:@"true"], [[RTCPair alloc] initWithKey:@"OfferToReceiveVideo" value:@"true"]] optionalConstraints:@[[[RTCPair alloc] initWithKey:@"DtlsSrtpKeyAgreement" value:@"false"]]];
     
+    
     //设置SDP的约束，用于在offer/answer中
     self.sdpConstraints = [[RTCMediaConstraints alloc] initWithMandatoryConstraints:@[[[RTCPair alloc] initWithKey:@"OfferToReceiveAudio" value:@"true"], [[RTCPair alloc] initWithKey:@"OfferToReceiveVideo" value:@"true"]] optionalConstraints:nil];
+    
     
     //用于设置视频的相关约束
     RTCPair *maxAspectRatio = [[RTCPair alloc] initWithKey:@"maxAspectRatio" value:@"4:3"];
@@ -55,70 +62,90 @@
     
     NSArray *mandatory = @[maxAspectRatio,maxWidth,minWidth,maxHeight,minHeight, maxFrameRate ,minFrameRate];
     self.videoConstraints = [[RTCMediaConstraints alloc] initWithMandatoryConstraints:mandatory optionalConstraints:nil];
-}
-
-- (void)startWebrtcConnection {
     
-    NSArray *servers = [self getICEServer];
-    
-    self.peerConnection = [self.peerConnectionFactory peerConnectionWithICEServers:servers constraints:self.pcConstraints delegate:self];
-    
-    RTCMediaStream *lms = [self.peerConnectionFactory mediaStreamWithLabel:@"ARDAMS"];
-    
-    //获取视频源
-    if (!self.localVideoCapture) {
-        NSString *cameraID = nil;
-     
-        for (AVCaptureDevice *device  in [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo]) {
-            if (!cameraID || device.position == AVCaptureDevicePositionFront) {
-                cameraID = [device localizedName];
-            }
-        }
-        self.localVideoCapture = [RTCVideoCapturer capturerWithDeviceName:cameraID];
-    }
-    
-    if (!self.localVideoSource) {
-        self.localVideoSource = [self.peerConnectionFactory videoSourceWithCapturer:self.localVideoCapture constraints:self.videoConstraints];
-    }
-    
-    
-    //建立视频流，并加入到媒体流
-    if (!self.localVideoTrack) {
-        self.localVideoTrack = [self.peerConnectionFactory videoTrackWithID:@"ARDAMSv0" source:self.localVideoSource];
-    }
-    if (self.localVideoTrack) {
-        [lms addVideoTrack:self.localVideoTrack];
-    }
-    
-    //获取音频流
-    if (!self.localAudioTrack) {
-        self.localAudioTrack = [self.peerConnectionFactory audioTrackWithID:@"ARDAMSa0"];
-    }
-    if (self.localAudioTrack) {
-        [lms addAudioTrack:self.localAudioTrack];
-    }
-    
-    [self.peerConnection addStream:lms];
-    
-    if ([self.webDelegate respondsToSelector:@selector(hasCreatedPeerConnection)]) {
-        [self.webDelegate hasCreatedPeerConnection];
-    }
 }
 
 #pragma mark- viewcontroller调用
 
-- (void)startAsCaller {
+- (void)startRTCWorkerAsInitiator:(BOOL)flag queuedSignalMessage:(NSMutableArray *)queueSingleMessage{
     
-    [self startWebrtcConnection];
-    [self.peerConnection createOfferWithDelegate:self constraints:self.sdpConstraints];
+    self.isInitiator = flag;
+    NSArray *servers = [self getICEServer];
+    
+    self.peerConnection = [self.peerConnectionFactory peerConnectionWithICEServers:servers constraints:self.pcConstraints delegate:self];
+    
+    self.hasCreatedPeerConnection = YES;
+
+    
+    //setup local media stream
+    RTCMediaStream *lms = [self.peerConnectionFactory mediaStreamWithLabel:@"ARDAMS"];
+    
+    //add local video track
+    if (!self.localVideoCapture) {
+        NSString *cameraID = nil;
+        //** front camera
+        for (AVCaptureDevice *captureDevice in [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo] ) {
+            if (!cameraID || captureDevice.position == AVCaptureDevicePositionFront) {
+                cameraID = [captureDevice localizedName];
+            }
+        }
+        self.localVideoCapture = [RTCVideoCapturer capturerWithDeviceName:cameraID];
+    }
+    if (!self.localVideoSource) {
+        self.localVideoSource = [self.peerConnectionFactory videoSourceWithCapturer:self.localVideoCapture constraints:self.videoConstraints];
+    }
+    if (!self.localVideoTrack) {
+        self.localVideoTrack = [self.peerConnectionFactory videoTrackWithID:@"ARDAMSv0" source:self.localVideoSource];
+    }
+    if (self.localVideoTrack) {
+//        [lms addVideoTrack:self.localVideoTrack];
+    }
+    
+    //add local audio track
+    if(!self.localAudioTrack){
+        self.localAudioTrack = [self.peerConnectionFactory audioTrackWithID:@"ARDAMSa0"];
+    }
+    if(self.localAudioTrack){
+        [lms addAudioTrack:self.localAudioTrack];
+    }
+    
+    //add local stream
+    [self.peerConnection addStream:lms];
+
+    if (self.isInitiator) {
+        [self startAsCaller];
+    }else{
+        [self startAsCallee:queueSingleMessage];
+    }
+    
+    [self notifyAddVideoView];
     
 }
 
-- (void)startAsCallee:(NSDictionary *)rtcDic {
+- (void)startAsCaller {
     
-    [self startWebrtcConnection];
+    [self.peerConnection createOfferWithDelegate:self constraints:self.sdpConstraints];
+}
+
+- (void)startAsCallee:(NSMutableArray *)queueSingleMessage {
+
     if ([self.webDelegate respondsToSelector:@selector(handleRTCMessage:)]) {
-        [self.webDelegate handleRTCMessage:rtcDic];
+        
+        for (int i = 0; i < queueSingleMessage.count; i++) {
+            NSDictionary *rtcDic = queueSingleMessage[i];
+            [self.webDelegate handleRTCMessage:rtcDic];
+        }
+    }
+    //处理完信息之后
+    if ([self.webDelegate respondsToSelector:@selector(handleRTCMessageDone)]) {
+        [self.webDelegate handleRTCMessageDone];
+    }
+}
+
+- (void)notifyAddVideoView {
+    
+    if ([self.webDelegate respondsToSelector:@selector(addVideoView)]) {
+        [self.webDelegate addVideoView];
     }
 }
 
@@ -151,6 +178,7 @@
 #pragma mark- RTCPeerConnectionDelegate
 /** *  当ICE被发现时，调用 */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection gotICECandidate:(RTCICECandidate *)candidate {
+    
     NSDictionary *jsonDict =
     @{ @"type" : @"candidate",
        @"label" : [NSNumber numberWithInteger:candidate.sdpMLineIndex],
@@ -168,28 +196,83 @@
     }
 }
 
-- (void)peerConnection:(RTCPeerConnection *)peerConnection iceGatheringChanged:(RTCICEGatheringState)newState {
+- (void)peerConnection:(RTCPeerConnection *)peerConnection didOpenDataChannel:(RTCDataChannel *)dataChannel {
+//    [JSIMTool logOutContent:@"didOpenDataChannel"];
     
 }
 
+- (void)peerConnection:(RTCPeerConnection *)peerConnection iceGatheringChanged:(RTCICEGatheringState)newState {
+//    [JSIMTool logOutContent:@"iceGatheringChanged"];
+}
+
 - (void)peerConnection:(RTCPeerConnection *)peerConnection iceConnectionChanged:(RTCICEConnectionState)newState {
-    
+//    [JSIMTool logOutContent:@"iceConnectionChanged"];
+
 }
 
 - (void)peerConnection:(RTCPeerConnection *)peerConnection signalingStateChanged:(RTCSignalingState)stateChanged{
     
+    NSString *state = @"";
+    switch (stateChanged) {
+        case RTCSignalingStable:
+            state = @"RTCSignalingStable";
+            break;
+            
+        case RTCSignalingHaveLocalOffer:
+            state = @"RTCSignalingHaveLocalOffer";
+            break;
+            
+        case RTCSignalingHaveLocalPrAnswer:
+            state = @"RTCSignalingHaveLocalPrAnswer";
+            break;
+            
+        case RTCSignalingHaveRemoteOffer:
+            state = @"RTCSignalingHaveRemoteOffer";
+            break;
+            
+        case RTCSignalingHaveRemotePrAnswer:
+            state = @"RTCSignalingHaveRemotePrAnswer";
+            break;
+            
+        case RTCSignalingClosed:
+            state = @"RTCSignalingClosed";
+            break;
+        default:
+            break;
+    }
+    
+    NSString *logStr = [NSString stringWithFormat:@"signallingState--%@",state];
+    
+    [JSIMTool logOutContent:logStr];
+
 }
 
 - (void)peerConnectionOnRenegotiationNeeded:(RTCPeerConnection *)peerConnection {
-    
+//    [JSIMTool logOutContent:@"peerConnectionOnRenegotiationNeeded"];
+
 }
 
+/**
+ *  从peerConnection接收到新的媒体流调用
+ */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection addedStream:(RTCMediaStream *)stream {
     
+    dispatch_async(dispatch_get_main_queue(), ^{
+        
+        if ([self.webDelegate respondsToSelector:@selector(receiveStreamWithPeerConnection:)]) {
+            [self.webDelegate receiveStreamWithPeerConnection:stream];
+        }
+    });
+
+}
+- (void)peerConnection:(RTCPeerConnection *)peerConnection removedStream:(RTCMediaStream *)stream {
+//    [JSIMTool logOutContent:@"removedStream"];
+
 }
 
 - (void)peerConnectionOnError:(RTCPeerConnection *)peerConnection {
-    
+//    [JSIMTool logOutContent:@"peerConnectionOnError"];
+
 }
 
 #pragma mark- RTCSessionDescriptonDelegate
@@ -214,19 +297,22 @@
 
 - (void)peerConnection:(RTCPeerConnection *)peerConnection didSetSessionDescriptionWithError:(NSError *)error{
     
-    // If we have a local offer OR answer we should signal it
-    if (self.peerConnection.signalingState == RTCSignalingHaveLocalOffer ) {
-
+    dispatch_async(dispatch_get_main_queue(), ^(void) {
         
-    } else if (self.peerConnection.signalingState == RTCSignalingHaveLocalPrAnswer) {
+        // If we have a local offer OR answer we should signal it
+        if (self.peerConnection.signalingState == RTCSignalingHaveLocalOffer ) {
+            // Send offer/answer through the signaling channel of our application
+            
+        } else if (self.peerConnection.signalingState == RTCSignalingHaveLocalPrAnswer) {
+            // If we have a remote offer we should add it to the peer connection
+            [self.peerConnection createAnswerWithDelegate:self constraints:self.sdpConstraints];
+        }else if (self.peerConnection.signalingState == RTCSignalingHaveRemoteOffer){
+            [self.peerConnection createAnswerWithDelegate:self constraints:self.sdpConstraints];
+        }else if (self.peerConnection.signalingState == RTCSignalingHaveRemotePrAnswer){
 
-    
-    }else if (self.peerConnection.signalingState == RTCSignalingHaveRemoteOffer) {
-        //create answer
-        [self.peerConnection createAnswerWithDelegate:self constraints:self.sdpConstraints];
-    }else if (self.peerConnection.signalingState == RTCSignalingHaveRemotePrAnswer) {
+        }
+    });
 
-    }
 }
 
 

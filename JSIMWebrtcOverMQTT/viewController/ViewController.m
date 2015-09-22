@@ -26,12 +26,7 @@
 @property (strong ,nonatomic)MQTTSessionTool        *mqttSessionTool;
 @property (strong ,nonatomic)WebRTCTool             *webrtcTool;
 
-@property (assign ,nonatomic)BOOL                   peerConnectionCreated;
-
-/**
- *  callee收到的offer
- */
-@property (strong ,nonatomic)NSDictionary           *calleeReceiveOfferDic;
+@property (strong ,nonatomic)NSMutableArray         *queuedSignalingMessages;
 
 @end
 
@@ -47,7 +42,7 @@
 #pragma mark- init property
 - (void)initAndAlloc {
     
-    self.calleeReceiveOfferDic = [[NSDictionary alloc]init];
+    self.queuedSignalingMessages = [NSMutableArray array];
     
     self.mqttSessionTool = [[MQTTSessionTool alloc]init];
     self.webrtcTool = [[WebRTCTool alloc]init];
@@ -88,6 +83,7 @@
                                           options:NSKeyValueObservingOptionInitial | NSKeyValueObservingOptionNew
                                           context:nil];
     self.mqttSessionTool.mqttSession.delegate = self;
+    self.webrtcTool.mqttSessionTool = self.mqttSessionTool;
 
 }
 
@@ -115,6 +111,7 @@
 
 - (IBAction)warmUpAction:(id)sender {
     [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:TestConnectionMessContent]];
+//    [self.mqttSessionTool sendMessageWithString:TestConnectionMessContent];
 }
 
 - (IBAction)connectAction:(id)sender {
@@ -123,6 +120,7 @@
     UIAlertView *alertV = [[UIAlertView alloc]initWithTitle:@"发起通话" message:toUserStr delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
     alertV.tag = ALERTVIEWCALLER;
     [alertV show];
+    
 }
 
 
@@ -136,6 +134,7 @@
     mes.content = content;
     return mes;
 }
+
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context{
 
@@ -190,9 +189,11 @@
 - (void)newMessage:(MQTTSession *)session data:(NSData *)data onTopic:(NSString *)topic qos:(MQTTQosLevel)qos retained:(BOOL)retained mid:(unsigned int)mid{
     
     ChatMessage *mes = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+    
+//    NSString *messageStr = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
     NSString *str = [NSString stringWithFormat:@"接受消息,主题：%@，内容：%@",topic,mes.content];
     [JSIMTool logOutContent:str];
-    
+
     //测试连接
     if ([mes.content isEqualToString:TestConnectionMessContent]) {
         UIAlertView  *al = [[UIAlertView alloc]initWithTitle:@"测试连接成功" message:nil delegate:nil cancelButtonTitle:nil otherButtonTitles:@"确定" ,nil];
@@ -207,14 +208,18 @@
         
         //若仍然没有创建peerConnection，那么就是callee接收到offer
         //否则是，caller接受到信息
-        if (!self.peerConnectionCreated) {
+        if ((!self.webrtcTool.isInitiator) && (!self.webrtcTool.hasCreatedPeerConnection) ) {
             if ([type isEqualToString:@"offer"]) {
-                self.calleeReceiveOfferDic = rtcDic;
+
+                [self.queuedSignalingMessages insertObject:rtcDic atIndex:0];
+                
                 //此处作为callee接收到的offer
                 NSString *receiveStr = [NSString stringWithFormat:@"接受来自%@的通话",self.otherUser.userName];
                 UIAlertView *alertV = [[UIAlertView alloc]initWithTitle:@"接受通话" message:receiveStr delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
                 alertV.tag = ALERTVIEWCALLEE;
                 [alertV show];
+            }else{
+                [self.queuedSignalingMessages addObject:rtcDic];
             }
         }else{
             [self handleRTCMessage:rtcDic];
@@ -224,9 +229,26 @@
     
 }
 
+
+#pragma mark- webrtc代理方法
+/***  发送本地sdp*/
+- (void)sendSdpWithData:(NSData *)data {
+    
+    NSString *sdpStr = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
+    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:sdpStr]];
+//    [self.mqttSessionTool sendMessageWithString:sdpStr];
+}
+
+- (void)sendICECandidate:(NSData *)data {
+    
+    NSString *iceCandidate = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
+    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:iceCandidate]];
+//    [self.mqttSessionTool sendMessageWithString:iceCandidate];
+}
+
 - (void)handleRTCMessage:(NSDictionary *)rtcDic {
     
-    if (!self.peerConnectionCreated) {
+    if (!self.webrtcTool.hasCreatedPeerConnection) {
         return;
     }
     
@@ -236,53 +258,67 @@
     
     if ([type compare:@"offer"] == NSOrderedSame) {
         
-        [JSIMTool logOutContent:@"处理rtc信息流————offer"];
-
+        [JSIMTool logOutContent:@"处理rtc————offer"];
+        
         NSString *sdpString = [rtcDic objectForKey:@"sdp"];
         [self.webrtcTool callerHandleOfferWithType:type offer:sdpString];
-
+        
         
     }else if ([type compare:@"answer"] == NSOrderedSame) {
         
-        [JSIMTool logOutContent:@"处理rtc信息流————answer"];
-
+        [JSIMTool logOutContent:@"处理rtc————answer"];
+        
         NSString *sdpString = [rtcDic objectForKey:@"sdp"];
         [self.webrtcTool callerHandleAnswerWithType:type answer:sdpString];
         
     }else if ([type compare:@"candidate"] == NSOrderedSame) {
         
-        [JSIMTool logOutContent:@"处理rtc信息流————candidate"];
-
+        [JSIMTool logOutContent:@"处理rtc————candidate"];
+        
         NSString *mid = [rtcDic objectForKey:@"id"];
         NSNumber *sdpLineIndex = [rtcDic objectForKey:@"label"];
         NSString *sdp = [rtcDic objectForKey:@"candidate"];
         [self.webrtcTool handleIceCandidateWithID:mid label:sdpLineIndex candidate:sdp];
         
     }else if ([type compare:@"bye"] == NSOrderedSame) {
-//        [self stopRTCTaskAsInitiator:NO];
+        //        [self stopRTCTaskAsInitiator:NO];
     }
-
     
 }
 
-#pragma mark- webrtc代理方法
-/***  发送本地sdp*/
-- (void)sendSdpWithData:(NSData *)data {
-    
-    NSString *sdpStr = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
-    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:sdpStr]];
+- (void)handleRTCMessageDone {
+    [self.queuedSignalingMessages removeAllObjects];
 }
 
-- (void)sendICECandidate:(NSData *)data {
+- (void)addVideoView {
     
-    NSString *iceCandidate = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
-    [self.mqttSessionTool sendChatMessage:[self buildChatMessageWithContent:iceCandidate]];
+//    self.remoteVideoView = [[RTCEAGLVideoView alloc]initWithFrame:CGRectMake(10, 40, 300, 300)];
+//    self.remoteVideoView.delegate = self;
+//    self.remoteVideoView.transform = CGAffineTransformMakeScale(-1, 1);
+//    [self.view addSubview:self.remoteVideoView];
+    
+    
+//    self.rtcVideoView = [[RTCVideoView alloc]initWithFrame:CGRectMake(40, 50, 200, 200)];
+//    self.rtcVideoView.layer.transform = CATransform3DMakeScale(1, -1, 1);
+//    self.rtcVideoView.backgroundColor = [UIColor lightGrayColor];
+//    [self.view addSubview:self.rtcVideoView];
     
 }
 
-- (void)hasCreatedPeerConnection {
-    self.peerConnectionCreated = YES;
+- (void)receiveStreamWithPeerConnection:(RTCMediaStream *)mediaStream {
+    
+    [JSIMTool logOutContent:@"receive media stream..."];
+    
+    if ([mediaStream.videoTracks count] > 0) {
+        RTCVideoTrack *track = [mediaStream.videoTracks lastObject];
+//        [track addRenderer:self.rtcVideoView];
+//        [track addRenderer:self.remoteVideoView];
+    }
 }
+
+- (void)videoView:(RTCEAGLVideoView *)videoView didChangeVideoSize:(CGSize)size {
+    
+}////////////////////////////
 
 #pragma mark- 配置
 
@@ -329,9 +365,9 @@
     self.turnerverConfig.username = ICESERVER_DNJ_TURN_USERNAME;
     self.turnerverConfig.credential = ICESERVER_DNJ_TURN_CREDENTIAL;
     
-    self.mqttServerConfig.serverName = SERVERNAME_IBM;
-    self.mqttServerConfig.url = MQTTSERVER_IBMHOST;
-    self.mqttServerConfig.port = MQTTSERVER_IBMPORT;
+    self.mqttServerConfig.serverName = SERVERNAME_DNJ;
+    self.mqttServerConfig.url = MQTTSERVER_DNJHOSt;
+    self.mqttServerConfig.port = MQTTSERVER_DNJPORT;
     //更新文本框内容
     [self updateTextFieldContent];
     //更新连接
@@ -430,10 +466,10 @@
     if (buttonIndex == 1) {
         if (alertView.tag == ALERTVIEWCALLER) {
             //确定发起通话
-            [self.webrtcTool startAsCaller];
+            [self.webrtcTool startRTCWorkerAsInitiator:YES queuedSignalMessage:self.queuedSignalingMessages];
         }else if (alertView.tag == ALERTVIEWCALLEE){
             //确定接受通话
-            [self.webrtcTool startAsCallee:self.calleeReceiveOfferDic];
+            [self.webrtcTool startRTCWorkerAsInitiator:NO queuedSignalMessage:self.queuedSignalingMessages];
         }
     }
 
