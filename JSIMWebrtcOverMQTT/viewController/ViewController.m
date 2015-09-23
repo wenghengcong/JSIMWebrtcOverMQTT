@@ -261,8 +261,7 @@
         [JSIMTool logOutContent:@"处理rtc————offer"];
         
         NSString *sdpString = [rtcDic objectForKey:@"sdp"];
-        [self.webrtcTool callerHandleOfferWithType:type offer:sdpString];
-        
+        [self.webrtcTool calleeHandleOfferWithType:type offer:sdpString];
         
     }else if ([type compare:@"answer"] == NSOrderedSame) {
         
@@ -290,6 +289,7 @@
     [self.queuedSignalingMessages removeAllObjects];
 }
 
+#warning TODO: video
 - (void)addVideoView {
     
 //    self.remoteVideoView = [[RTCEAGLVideoView alloc]initWithFrame:CGRectMake(10, 40, 300, 300)];
@@ -316,9 +316,10 @@
     }
 }
 
+#pragma mark- RTCEAGLVideoViewDelegate
 - (void)videoView:(RTCEAGLVideoView *)videoView didChangeVideoSize:(CGSize)size {
     
-}////////////////////////////
+}
 
 #pragma mark- 配置
 

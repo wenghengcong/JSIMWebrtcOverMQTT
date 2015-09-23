@@ -26,6 +26,9 @@
 
 #pragma mark- 初始化RTC
 
+/**
+ *  开启webrtc会话
+ */
 - (void)startEngine {
     
     RTCSetMinDebugLogLevel(kRTCLoggingSeverityError);
@@ -37,6 +40,9 @@
     [self setConstraints];
 }
 
+/**
+ *  设置webrtc相关参数
+ */
 - (void)setConstraints {
     
     //设置RTCPeerConnection的约束
@@ -65,8 +71,14 @@
     
 }
 
-#pragma mark- viewcontroller调用
+#pragma mark- view controller调用
 
+/**
+ *  当用户（caller/callee）触发按钮，进行通话操作，首先进入到这里
+ *
+ *  @param flag               yes时，是以caller进入，no即为callee
+ *  @param queueSingleMessage 消息队列
+ */
 - (void)startRTCWorkerAsInitiator:(BOOL)flag queuedSignalMessage:(NSMutableArray *)queueSingleMessage{
     
     self.isInitiator = flag;
@@ -97,6 +109,7 @@
     if (!self.localVideoTrack) {
         self.localVideoTrack = [self.peerConnectionFactory videoTrackWithID:@"ARDAMSv0" source:self.localVideoSource];
     }
+#warning TODO:video
     if (self.localVideoTrack) {
 //        [lms addVideoTrack:self.localVideoTrack];
     }
@@ -121,9 +134,21 @@
     [self notifyAddVideoView];
     
 }
+/**
+ *  在webrtc peerConnection初始化之后，通知代理，打开视频窗口（此时，没有数据流，一直要等到p2p通道建立后，才有数据流传送）
+ */
+- (void)notifyAddVideoView {
+    
+    if ([self.webDelegate respondsToSelector:@selector(addVideoView)]) {
+        [self.webDelegate addVideoView];
+    }
+}
 
 - (void)startAsCaller {
-    
+    /**
+     *  作为caller，第一步就是创建offer，offer创建成功后，会调用didCreateSessionDescription方法
+     *  在回调方法中，将offer发送
+     */
     [self.peerConnection createOfferWithDelegate:self constraints:self.sdpConstraints];
 }
 
@@ -142,21 +167,27 @@
     }
 }
 
-- (void)notifyAddVideoView {
-    
-    if ([self.webDelegate respondsToSelector:@selector(addVideoView)]) {
-        [self.webDelegate addVideoView];
-    }
-}
 
-- (void)callerHandleOfferWithType:(NSString *)type offer:(NSString *)offer {
+/**
+ *  callee接收到信令传过来的offer，将caller的offer设置为自己的remote description
+ *
+ *  @param type  offer
+ *  @param offer caller offer(caller local description)
+ */
+- (void)calleeHandleOfferWithType:(NSString *)type offer:(NSString *)offer {
     
     RTCSessionDescription *sdp = [[RTCSessionDescription alloc]
                                   initWithType:type sdp:[self preferISAC:offer]];
+    //设置remote description时，会调用didSetSessionDescriptionWithError回调方法
     [self.peerConnection setRemoteDescriptionWithDelegate:self sessionDescription:sdp];
 
 }
-
+/**
+ *  caller接受到信令传送过来的answer，将callee的offer设置为自己的remote description
+ *
+ *  @param type   answer
+ *  @param answer callee answer(callee local description)
+ */
 - (void)callerHandleAnswerWithType:(NSString *)type answer:(NSString *)answer {
     
     RTCSessionDescription *sdp = [[RTCSessionDescription alloc]
@@ -164,7 +195,13 @@
     [self.peerConnection setRemoteDescriptionWithDelegate:self sessionDescription:sdp];
 
 }
-
+/**
+ *  不管作为caller，还是callee，在通过ICE服务器设置完peerConnection后，一直会搜寻ice伺服器。
+ *
+ *  @param ID    <#ID description#>
+ *  @param label <#label description#>
+ *  @param sdp   <#sdp description#>
+ */
 - (void)handleIceCandidateWithID:(NSString *)ID label:(NSNumber *)label candidate:(NSString *)sdp {
     
     RTCICECandidate *candidate =
@@ -176,7 +213,9 @@
 }
 
 #pragma mark- RTCPeerConnectionDelegate
-/** *  当ICE被发现时，调用 */
+/**
+ *  新的ice伺服器被发现
+ */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection gotICECandidate:(RTCICECandidate *)candidate {
     
     NSDictionary *jsonDict =
@@ -196,20 +235,35 @@
     }
 }
 
+/**
+ *  新的dataChannel通道打开
+ */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection didOpenDataChannel:(RTCDataChannel *)dataChannel {
 //    [JSIMTool logOutContent:@"didOpenDataChannel"];
     
 }
 
+/**
+ *  在任何时间内，只要 ICEGatheringState 状态改变时调用
+ *  @param newState       ICE侦听状态
+ */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection iceGatheringChanged:(RTCICEGatheringState)newState {
 //    [JSIMTool logOutContent:@"iceGatheringChanged"];
 }
 
+/**
+ *  在任何时间内，只要 RTCICEConnectionState 状态改变时调用
+ *  @param newState       ICE连接状态
+ */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection iceConnectionChanged:(RTCICEConnectionState)newState {
 //    [JSIMTool logOutContent:@"iceConnectionChanged"];
 
 }
 
+/**
+ *  在peerConnection信令通道状态改变时，触发该方法
+ *  @param stateChanged   信令通道状态
+ */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection signalingStateChanged:(RTCSignalingState)stateChanged{
     
     NSString *state = @"";
@@ -265,11 +319,16 @@
     });
 
 }
+/**
+ *  从peerConnection移除媒体流
+ */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection removedStream:(RTCMediaStream *)stream {
 //    [JSIMTool logOutContent:@"removedStream"];
 
 }
-
+/**
+ *  peerConnection连接发送错误是触发
+ */
 - (void)peerConnectionOnError:(RTCPeerConnection *)peerConnection {
 //    [JSIMTool logOutContent:@"peerConnectionOnError"];
 
@@ -277,7 +336,20 @@
 
 #pragma mark- RTCSessionDescriptonDelegate
 
+/**
+ *  一旦创建offer/answer会调用此方法
+ *
+ *  @param peerConnection
+ *  @param sdp            local/remote description
+ *  @param error
+ */
 - (void)peerConnection:(RTCPeerConnection *)peerConnection didCreateSessionDescription:(RTCSessionDescription *)sdp error:(NSError *)error{
+    
+    /**
+     *两种情况下，会设置local description，并且通过信令通道发送
+     *1.caller创建offer成功后，设置local description，并且发送
+     *2.callee创建answer成功后，同样会设置local description，并且发送（在这之前，callee已将remote description设置完毕）
+     */
     
     RTCSessionDescription *localSdp = [[RTCSessionDescription alloc]initWithType:sdp.type sdp:[self preferISAC:sdp.description]];
     [self.peerConnection setLocalDescriptionWithDelegate:self sessionDescription:localSdp];
@@ -300,14 +372,25 @@
     dispatch_async(dispatch_get_main_queue(), ^(void) {
         
         // If we have a local offer OR answer we should signal it
+        // Send offer/answer through the signaling channel of our application
+
+        
         if (self.peerConnection.signalingState == RTCSignalingHaveLocalOffer ) {
-            // Send offer/answer through the signaling channel of our application
             
         } else if (self.peerConnection.signalingState == RTCSignalingHaveLocalPrAnswer) {
-            // If we have a remote offer we should add it to the peer connection
-            [self.peerConnection createAnswerWithDelegate:self constraints:self.sdpConstraints];
+
+//            [self.peerConnection createAnswerWithDelegate:self constraints:self.sdpConstraints];
+            
+            
         }else if (self.peerConnection.signalingState == RTCSignalingHaveRemoteOffer){
+            
+            /**
+             *  callee在接到caller的offer后，且将callee的remote description设置完之后，创建answer
+             *  创建answer之后，调用didCreateSessionDescription回调处理，在回调中发送answer
+             */
             [self.peerConnection createAnswerWithDelegate:self constraints:self.sdpConstraints];
+            
+            
         }else if (self.peerConnection.signalingState == RTCSignalingHaveRemotePrAnswer){
 
         }
@@ -316,7 +399,7 @@
 }
 
 
-#pragma mark-
+#pragma mark- get ice server
 
 - (NSArray *)getICEServer {
     
