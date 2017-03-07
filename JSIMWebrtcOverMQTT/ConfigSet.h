@@ -16,15 +16,14 @@
 #define UserBobName                     @"JSIMUser/Bob"
 
 //server name
-#define SERVERNAME_DNJ                  @"dnj server"
-#define SERVERNAME_IBM                  @"ibm server"
-#define SERVERNAME_MOSQUITTOR           @"mosquitto server"
-#define SERVERNAME_OTHER                @"other server"
+#define SERVERNAME_IPTEL                        @"iptel server"
+#define SERVERNAME_SOFTJOYS                     @"softjoys server"
+#define SERVERNAME_IBM                          @"ibm server"
+#define SERVERNAME_MOSQUITTOR                   @"mosquitto server"
+#define SERVERNAME_OTHER                        @"other server"
 
 
 //mqtt server config
-#define MQTTSERVER_DNJHOSt              @"183.131.153.252"
-#define MQTTSERVER_DNJPORT              @"1883"
 
 #define MQTTSERVER_IBMHOST              @"messagesight.demos.ibm.com"
 #define MQTTSERVER_IBMPORT              @"1883"
@@ -34,14 +33,21 @@
 
 
 //ice
-#define ICESERVER_DNJ_STUN_HOST                 @"stun:183.131.153.252:3478"
-#define ICESERVER_DNJ_STUN_PORT                 @""
+#define ICESERVER_IPTEL_STUN_HOST                 @"stun:stun.iptel.org"
+#define ICESERVER_IPTEL_STUN_PORT                 @""
 
-#define ICESERVER_DNJ_TURN_HOST                 @"turn:183.131.153.252:3478"
-#define ICESERVER_DNJ_TURN_PORT                 @""
-#define ICESERVER_DNJ_TURN_USERNAME             @"wujin099"
-#define ICESERVER_DNJ_TURN_CREDENTIAL           @"13936513"
+#define ICESERVER_IPTEL_TURN_HOST                 @"stun:stun.iptel.org"
+#define ICESERVER_IPTEL_TURN_PORT                 @""
+#define ICESERVER_IPTEL_TURN_USERNAME             @""
+#define ICESERVER_IPTEL_TURN_CREDENTIAL           @""
 
+#define ICESERVER_SOFTJOYS_STUN_HOST                 @"stun:stun.softjoys.com"
+#define ICESERVER_SOFTJOYS_STUN_PORT                 @""
+
+#define ICESERVER_SOFTJOYS_TURN_HOST                 @"stun:stun.softjoys.com"
+#define ICESERVER_SOFTJOYS_TURN_PORT                 @""
+#define ICESERVER_SOFTJOYS_TURN_USERNAME             @""
+#define ICESERVER_SOFTJOYS_TURN_CREDENTIAL           @""
 
 
 #define JSIMRTCLOG

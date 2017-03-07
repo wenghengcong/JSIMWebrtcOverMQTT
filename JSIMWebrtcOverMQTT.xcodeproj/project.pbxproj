@@ -8,9 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		E60CCDF953363AB24F4FF8E3 /* libPods.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9507D20F8A3B933E73A1AD74 /* libPods.a */; };
-		FE0F856D1BAF93D8002E3D6B /* WebRTCTool.m in Sources */ = {isa = PBXBuildFile; fileRef = FE0F856C1BAF93D8002E3D6B /* WebRTCTool.m */; settings = {ASSET_TAGS = (); }; };
-		FE0F85701BAF9483002E3D6B /* MQTTSessionTool.m in Sources */ = {isa = PBXBuildFile; fileRef = FE0F856F1BAF9483002E3D6B /* MQTTSessionTool.m */; settings = {ASSET_TAGS = (); }; };
-		FE50B5FB1BB0E18400AFF1AD /* RTCVideoView.m in Sources */ = {isa = PBXBuildFile; fileRef = FE50B5FA1BB0E18400AFF1AD /* RTCVideoView.m */; settings = {ASSET_TAGS = (); }; };
+		FE0F856D1BAF93D8002E3D6B /* WebRTCTool.m in Sources */ = {isa = PBXBuildFile; fileRef = FE0F856C1BAF93D8002E3D6B /* WebRTCTool.m */; };
+		FE0F85701BAF9483002E3D6B /* MQTTSessionTool.m in Sources */ = {isa = PBXBuildFile; fileRef = FE0F856F1BAF9483002E3D6B /* MQTTSessionTool.m */; };
+		FE50B5FB1BB0E18400AFF1AD /* RTCVideoView.m in Sources */ = {isa = PBXBuildFile; fileRef = FE50B5FA1BB0E18400AFF1AD /* RTCVideoView.m */; };
 		FE8AEDF11BABB03A0099DEE3 /* VideoChatViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FE8AEDEE1BABB03A0099DEE3 /* VideoChatViewController.m */; };
 		FE8AEDF21BABB03A0099DEE3 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FE8AEDF01BABB03A0099DEE3 /* ViewController.m */; };
 		FE8AEDFA1BABB0410099DEE3 /* ChatMessage.m in Sources */ = {isa = PBXBuildFile; fileRef = FE8AEDF51BABB0410099DEE3 /* ChatMessage.m */; };
@@ -328,6 +328,8 @@
 				TargetAttributes = {
 					FEDD40F21BAAC152001016A9 = {
 						CreatedOnToolsVersion = 6.4;
+						DevelopmentTeam = 69XHTLCF36;
+						ProvisioningStyle = Automatic;
 					};
 					FEDD410B1BAAC152001016A9 = {
 						CreatedOnToolsVersion = 6.4;
@@ -549,6 +551,8 @@
 			baseConfigurationReference = 96F0B593F7B8F3C2021A93B0 /* Pods.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer: Hengcong Weng (7RMANB5BXZ)";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -558,7 +562,9 @@
 				INFOPLIST_FILE = JSIMWebrtcOverMQTT/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.junglesong.JSIMWebrtcOverMQTT;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 			};
 			name = Debug;
 		};
@@ -567,11 +573,15 @@
 			baseConfigurationReference = 0410A726358F622B9D29FB1A /* Pods.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = JSIMWebrtcOverMQTT/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.junglesong.JSIMWebrtcOverMQTT;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 			};
 			name = Release;
 		};

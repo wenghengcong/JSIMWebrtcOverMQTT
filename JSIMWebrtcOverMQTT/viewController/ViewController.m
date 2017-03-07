@@ -338,14 +338,14 @@
 
 - (IBAction)chooseICEServer:(id)sender {
     
-    self.chooseICEAS = [[UIActionSheet alloc]initWithTitle:@"选择ICE服务器" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:SERVERNAME_DNJ,SERVERNAME_OTHER, nil];
+    self.chooseICEAS = [[UIActionSheet alloc]initWithTitle:@"选择ICE服务器" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:SERVERNAME_IPTEL,SERVERNAME_SOFTJOYS, nil];
     [self.chooseICEAS showInView:self.view];
     
 }
 
 - (IBAction)chooseMqttServer:(id)sender {
     
-    self.chooseMQTTAS = [[UIActionSheet alloc]initWithTitle:@"选择MQTT服务器" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:SERVERNAME_DNJ,SERVERNAME_IBM,SERVERNAME_MOSQUITTOR, nil];
+    self.chooseMQTTAS = [[UIActionSheet alloc]initWithTitle:@"选择MQTT服务器" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:nil otherButtonTitles:SERVERNAME_IBM,SERVERNAME_MOSQUITTOR, nil];
     [self.chooseMQTTAS showInView:self.view];
 }
 
@@ -360,15 +360,15 @@
         self.otherUser.userName = UserAliceName;
     }
     
-    self.stunServerConfig.serverName = SERVERNAME_DNJ;
-    self.stunServerConfig.url = ICESERVER_DNJ_STUN_HOST;
-    self.turnerverConfig.url = ICESERVER_DNJ_TURN_HOST;
-    self.turnerverConfig.username = ICESERVER_DNJ_TURN_USERNAME;
-    self.turnerverConfig.credential = ICESERVER_DNJ_TURN_CREDENTIAL;
+    self.stunServerConfig.serverName = SERVERNAME_IPTEL;
+    self.stunServerConfig.url = ICESERVER_IPTEL_STUN_HOST;
+    self.turnerverConfig.url = ICESERVER_IPTEL_TURN_HOST;
+    self.turnerverConfig.username = ICESERVER_IPTEL_TURN_USERNAME;
+    self.turnerverConfig.credential = ICESERVER_IPTEL_TURN_CREDENTIAL;
     
-    self.mqttServerConfig.serverName = SERVERNAME_DNJ;
-    self.mqttServerConfig.url = MQTTSERVER_DNJHOSt;
-    self.mqttServerConfig.port = MQTTSERVER_DNJPORT;
+    self.mqttServerConfig.serverName = SERVERNAME_MOSQUITTOR;
+    self.mqttServerConfig.url = MQTTSERVER_MOSQUITTOHOST;
+    self.mqttServerConfig.port = MQTTSERVER_MOSQUITTOPORT;
     //更新文本框内容
     [self updateTextFieldContent];
     //更新连接
@@ -409,22 +409,25 @@
 
         if (buttonIndex == 0) {
             
-            self.stunServerConfig.url = ICESERVER_DNJ_STUN_HOST;
+            self.stunServerConfig.url = ICESERVER_IPTEL_STUN_HOST;
             
-            self.turnerverConfig.url = ICESERVER_DNJ_TURN_HOST;
-            self.turnerverConfig.username = ICESERVER_DNJ_TURN_USERNAME;
-            self.turnerverConfig.credential = ICESERVER_DNJ_TURN_CREDENTIAL;
+            self.turnerverConfig.url = ICESERVER_IPTEL_TURN_HOST;
+            self.turnerverConfig.username = ICESERVER_IPTEL_TURN_USERNAME;
+            self.turnerverConfig.credential = ICESERVER_IPTEL_TURN_CREDENTIAL;
             
         }else if(buttonIndex == 1){
             //no
+            self.stunServerConfig.url = ICESERVER_SOFTJOYS_STUN_HOST;
+            self.turnerverConfig.url = ICESERVER_SOFTJOYS_TURN_HOST;
+            self.turnerverConfig.username = ICESERVER_SOFTJOYS_TURN_USERNAME;
+            self.turnerverConfig.credential = ICESERVER_SOFTJOYS_TURN_CREDENTIAL;
             
         }else if (buttonIndex == 2){
             
-            self.stunServerConfig.url = ICESERVER_DNJ_STUN_HOST;
-            
-            self.turnerverConfig.url = ICESERVER_DNJ_TURN_HOST;
-            self.turnerverConfig.username = ICESERVER_DNJ_TURN_USERNAME;
-            self.turnerverConfig.credential = ICESERVER_DNJ_TURN_CREDENTIAL;
+            self.stunServerConfig.url = ICESERVER_SOFTJOYS_STUN_HOST;
+            self.turnerverConfig.url = ICESERVER_SOFTJOYS_TURN_HOST;
+            self.turnerverConfig.username = ICESERVER_SOFTJOYS_TURN_USERNAME;
+            self.turnerverConfig.credential = ICESERVER_SOFTJOYS_TURN_CREDENTIAL;
             
 
         }
@@ -433,21 +436,14 @@
         
         self.mqttServerConfig.serverName = [actionSheet buttonTitleAtIndex:buttonIndex];
         
-        if (buttonIndex == 0) {
-            self.mqttServerConfig.url = MQTTSERVER_DNJHOSt;
-            self.mqttServerConfig.port = MQTTSERVER_DNJPORT;
-        }else if(buttonIndex == 1){
+        if(buttonIndex == 0){
             self.mqttServerConfig.url = MQTTSERVER_IBMHOST;
             self.mqttServerConfig.port = MQTTSERVER_IBMPORT;
             
-        }else if (buttonIndex == 2){
+        }else if (buttonIndex == 1){
             self.mqttServerConfig.url = MQTTSERVER_MOSQUITTOHOST;
             self.mqttServerConfig.port = MQTTSERVER_MOSQUITTOPORT;
             
-        }else if(buttonIndex == 3){
-            //默认
-            self.mqttServerConfig.url = MQTTSERVER_DNJHOSt;
-            self.mqttServerConfig.port = MQTTSERVER_DNJPORT;
         }
         
     }
